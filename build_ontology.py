@@ -29,7 +29,8 @@ def iterate_movies_list(url):
 
     i = 0
 
-    # urls = ["https://en.wikipedia.org/wiki/Fifty_Shades_of_Grey_(film)"] + urls
+    # urls = ["https://en.wikipedia.org/wiki/Colette_(2020_film)"]
+    # visited.add("Colette_(2020_film)")
 
     for next_url in urls:
         crawl_film(next_url, g)
@@ -38,6 +39,7 @@ def iterate_movies_list(url):
         #     break
 
     g.serialize("ontology.nt", format='nt')
+    # print(g.serialize(format="nt").decode("utf-8"))
     return g
 
 
@@ -50,21 +52,24 @@ def add_relation_based_on_type(subject, relation, urls, g, query_results, is_lin
 
         g.add((subject, OUR_NAMESPACE[relation], object_entity))
 
-        if is_link and t in visited:
-            continue
-
         # print(f"---- {t}")
-        if is_link:
+        if is_link and t not in visited:
             urls.append(f"{prefix}{t}")
             visited.add(t)
 
 
 def add_relation(subject, relation, urls, doc, g, prefix_query, text_to_match, just_text):
+    object_text_to_match = doc.xpath(f"{prefix_query}[./th[.//text() = '{text_to_match}']]")
+    if len(object_text_to_match) == 0:
+        return
+
     if not just_text:
-        query_results = doc.xpath(f"{prefix_query}[./th[.//text() = '{text_to_match}']]//a/@href")
+        query_results = object_text_to_match[0].xpath(".//a/@href")
         add_relation_based_on_type(subject, relation, urls, g, query_results, True)
 
-    query_results = doc.xpath(f"{prefix_query}[./th[.//text() = '{text_to_match}']]//li/text()")
+    query_results = object_text_to_match[0].xpath(f"./td//text()[. != '\n' and not(./parent::a)]")
+    # we do not want to add twice links to the graph
+
     add_relation_based_on_type(subject, relation, urls, g, query_results, False)
 
 
@@ -193,3 +198,4 @@ def crawl_person(url, g):
 
 url_root = "https://en.wikipedia.org/wiki/List_of_Academy_Award-winning_films"
 g = iterate_movies_list(url_root)
+

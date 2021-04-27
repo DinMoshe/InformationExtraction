@@ -1,10 +1,13 @@
-from build_ontology import OUR_NAMESPACE
+from rdflib import Graph, Literal, URIRef, Namespace
+
+OUR_NAMESPACE = Namespace("https://example.org/")
+WIKI = Namespace("http://en.wikipedia.org/wiki/")
 
 
 def get_entity_name_and_relation(relation_type, words_lst, index_start, index_end):
     entity_name = "_".join(words_lst[index_start:index_end])
     relation = OUR_NAMESPACE[relation_type]
-    return relation, entity_name
+    return relation, WIKI[entity_name]
 
 
 def parse_query(input_string):
@@ -70,16 +73,13 @@ def parse_query(input_string):
                 occupation1 = words_lst[2:index_of_are].lower()
                 occupation2 = words_lst[index_of_are + 1:].lower()
                 return 12, occupation1, occupation2
-
     elif words_lst[0] == "Did":
         # query 7
-        index_of_star = words_lst.index("star") # must be the verb of the query
+        index_of_star = words_lst.index("star")  # must be the verb of the query
         person_name = "_".join(words_lst[1:index_of_star])
         film_name = "_".join(words_lst[index_of_star + 2:])
         relation = OUR_NAMESPACE["starring"]
-        return 7, relation, film_name, person_name
+        return 7, relation, WIKI[film_name], WIKI[person_name]
     elif words_lst[0] == "What":
         # query 9
         return 9, *get_entity_name_and_relation("occupation", words_lst, 5, len(words_lst))
-
-
