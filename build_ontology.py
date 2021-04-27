@@ -193,9 +193,10 @@ def crawl_person(url, g):
     for t in query_results:
         list_occupations = t.split(",")
         for occ in list_occupations:
-            g.add((current_entity, OUR_NAMESPACE["occupation"], Literal(occ.strip().lower())))
+            g.add((current_entity, OUR_NAMESPACE["occupation"], Literal(occ.strip().title())))
 
 
 url_root = "https://en.wikipedia.org/wiki/List_of_Academy_Award-winning_films"
 g = iterate_movies_list(url_root)
+
 
