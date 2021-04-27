@@ -160,8 +160,12 @@ def crawl_person(url, g):
     doc = lxml.html.fromstring(r.content)
 
     current_entity = URIRef(url)
-    prefix_query = "//table[contains(@class, 'infobox')]"
+    prefix_query = ".//table[contains(@class, 'infobox')]"
     infobox = doc.xpath(prefix_query)
+
+    if len(infobox) == 0:
+        # we only extract information form the infobox
+        return
 
     # get the birth date
     # format Born:
