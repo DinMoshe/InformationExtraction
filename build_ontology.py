@@ -1,16 +1,15 @@
-from rdflib import Graph, Literal, RDF, URIRef, Namespace, BNode
-# rdflib knows about some namespaces, like FOAF
-from rdflib.namespace import FOAF, XSD
+from rdflib import Graph, Literal, URIRef, Namespace
 
 import requests
 import lxml.html
-import datetime
 
 prefix = "http://en.wikipedia.org"
 visited = set()
 
-DBPEDIA = Namespace("https://dbpedia.org/ontology/")
+OUR_NAMESPACE = Namespace("https://example.org/")
 WIKI = Namespace("http://en.wikipedia.org/wiki/")
+MONTHS = ["January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December"]
 
 
 def iterate_movies_list(url):
@@ -34,11 +33,12 @@ def iterate_movies_list(url):
 
     for next_url in urls:
         crawl_film(next_url, g)
-        i += 1
-        if i > 1:
-            break
+        # i += 1
+        # if i > 1:
+        #     break
 
-    print(g.serialize(format='nt').decode("utf-8"))
+    g.serialize("ontology.nt", format='nt')
+    return g
 
 
 def add_relation_based_on_type(subject, relation, urls, g, query_results, is_link):
@@ -48,7 +48,7 @@ def add_relation_based_on_type(subject, relation, urls, g, query_results, is_lin
         else:
             object_entity = WIKI[t.replace(" ", "_")]
 
-        g.add((subject, DBPEDIA[relation], object_entity))
+        g.add((subject, OUR_NAMESPACE[relation], object_entity))
 
         if is_link and t in visited:
             continue
@@ -93,15 +93,12 @@ def parse_date(date):
         # if we just got parentheses
         return None
 
-    months = ["January", "February", "March", "April", "May", "June",
-              "July", "August", "September", "October", "November", "December"]
-
     month = None
     day = None
     year = None
     for item in date_list:
-        if item in months:
-            month = str(months.index(item) + 1)
+        if item in MONTHS:
+            month = str(MONTHS.index(item) + 1)
             if len(month) < 2:
                 month = "0" + month
         elif item.isnumeric() and int(item) > 31:  # it is a year
@@ -136,18 +133,18 @@ def crawl_film(url, g):
     # find if the movie is based on a book
     query_results = doc.xpath(f"{prefix_query}[./th[text() = 'Based on']]")
     if len(query_results) > 0:
-        g.add((current_entity, DBPEDIA["based_on"], Literal(True)))
+        g.add((current_entity, OUR_NAMESPACE["based_on"], Literal(True)))
 
     # get release date
     query_results = doc.xpath(f"{prefix_query}[./th[.//text() = 'Release date']]//li/text()")
     for t in query_results:
         t = parse_date(t)
         if t is not None:
-            g.add((current_entity, DBPEDIA["release_date"], Literal(t)))
+            g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t)))
 
     query_results = doc.xpath(f"{prefix_query}[./th[.//text() = 'Running time']]/td/text()")
     for t in query_results:
-        g.add((current_entity, DBPEDIA["running_time"], Literal(t)))
+        g.add((current_entity, OUR_NAMESPACE["running_time"], Literal(t)))
 
     for next_url in urls:
         crawl_person(next_url, g)
@@ -163,64 +160,32 @@ def crawl_person(url, g):
     doc = lxml.html.fromstring(r.content)
 
     current_entity = URIRef(url)
-    prefix_query = "//table[contains(@class, 'infobox')]//tr"
+    prefix_query = "//table[contains(@class, 'infobox')]"
+    infobox = doc.xpath(prefix_query)
 
     # get the birth date
-    query_results = doc.xpath(f"{prefix_query}[./th[.//text() = 'Born']]/td//text()")
+    # format Born:
+    query_results = infobox[0].xpath(".//tr[./th[.//text() = 'Born']]/td//text()")
     for t in query_results:
         t = parse_date(t)
         if t is not None:
-            g.add((current_entity, DBPEDIA["born"], Literal(t)))
+            g.add((current_entity, OUR_NAMESPACE["born"], Literal(t)))
+    # format Date of Birth
+    query_results = infobox[0].xpath(".//tr//th[contains(text(), 'Date of birth')]")
+    for t in query_results:
+        t = t.xpath("./../td//span[@class='bday']//text()")
+        if len(t) > 0:
+            t = [str(s) for s in t]
+            dob = "".join(t)
+            g.add((current_entity, OUR_NAMESPACE["born"], Literal(dob)))
 
     # get the occupation
-    query_results = doc.xpath(f"{prefix_query}[./th[.//text() = 'Occupation']]/td//text()")
+    query_results = infobox[0].xpath(f".//tr[./th[.//text() = 'Occupation']]/td//text()")
     for t in query_results:
         list_occupations = t.split(",")
         for occ in list_occupations:
-            g.add((current_entity, DBPEDIA["occupation"], Literal(occ.strip().lower())))
-
-
-def create_ontology():
-    # create a Graph
-    g = Graph()
-
-    # Create an RDF URI node to use as the subject for multiple triples
-    donna = URIRef("http://example.org/donna")
-
-    # Add triples using store's add() method.
-    g.add((donna, RDF.type, FOAF.Person))
-    g.add((donna, FOAF.nick, Literal("donna", lang="ed")))
-    g.add((donna, FOAF.name, Literal("Donna Fales")))
-    g.add((donna, FOAF.mbox, URIRef("mailto:donna@example.org")))
-
-    # Add another person
-    ed = URIRef("http://example.org/edward")
-
-    # Add triples using store's add() method.
-    g.add((ed, RDF.type, FOAF.Person))
-    g.add((ed, FOAF.nick, Literal("ed", datatype=XSD.string)))
-    g.add((ed, FOAF.name, Literal("Edward Scissorhands")))
-    g.add((ed, FOAF.mbox, URIRef("mailto:e.scissorhands@example.org")))
-
-    # Iterate over triples in store and print them out.
-    print("--- printing raw triples ---")
-    for s, p, o in g:
-        print((s, p, o))
-
-    # For each foaf:Person in the store, print out their mbox property's value.
-    print("--- printing mboxes ---")
-    for person in g.subjects(RDF.type, FOAF.Person):
-        for mbox in g.objects(person, FOAF.mbox):
-            print(mbox)
-
-    # Bind the FOAF namespace to a prefix for more readable output
-    g.bind("foaf", FOAF)
-
-    # print all the data in the Notation3 format
-    print("--- printing mboxes ---")
-    print(g.serialize(format='n3').decode("utf-8"))
+            g.add((current_entity, OUR_NAMESPACE["occupation"], Literal(occ.strip().lower())))
 
 
 url_root = "https://en.wikipedia.org/wiki/List_of_Academy_Award-winning_films"
-iterate_movies_list(url_root)
-
+g = iterate_movies_list(url_root)
