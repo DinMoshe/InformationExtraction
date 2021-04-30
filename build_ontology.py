@@ -2,6 +2,7 @@ from rdflib import Graph, Literal, URIRef, Namespace
 
 import requests
 import lxml.html
+import time
 
 prefix = "http://en.wikipedia.org"
 visited = set()
@@ -12,10 +13,23 @@ MONTHS = ["January", "February", "March", "April", "May", "June",
           "July", "August", "September", "October", "November", "December"]
 
 
+def get_page(url):
+    page = ''
+    while page == '':
+        try:
+            page = requests.get(url)
+            break
+
+        except requests.exceptions.ConnectionError:
+            time.sleep(5)
+            continue
+    return page
+
+
 def iterate_movies_list(url):
     g = Graph()
     urls = []
-    r = requests.get(url)
+    r = get_page(url)
     doc = lxml.html.fromstring(r.content)
     for t in doc.xpath("""//table[contains(@class, 'wikitable sortable')]
                         //tr[td[2]//a/text()[number(.) >= 2010]]/td[1]//a[@href]/@href"""):
@@ -29,8 +43,8 @@ def iterate_movies_list(url):
 
     i = 0
 
-    # urls = ["https://en.wikipedia.org/wiki/Colette_(2020_film)"]
-    # visited.add("Colette_(2020_film)")
+    # urls = ["http://en.wikipedia.org/wiki/The_Great_Beauty"]
+    # visited.add("The_Great_Beauty")
 
     for next_url in urls:
         crawl_film(next_url, g)
@@ -48,7 +62,11 @@ def add_relation_based_on_type(subject, relation, urls, g, query_results, is_lin
         if is_link:
             object_entity = URIRef(prefix + t)
         else:
-            object_entity = WIKI[t.replace(" ", "_")]
+            t = t.split()
+            t = "_".join(t)
+            if "Executive_Producer" in t:
+                return
+            object_entity = WIKI[t]
 
         g.add((subject, OUR_NAMESPACE[relation], object_entity))
 
@@ -67,7 +85,7 @@ def add_relation(subject, relation, urls, doc, g, prefix_query, text_to_match, j
         query_results = object_text_to_match[0].xpath(".//a/@href")
         add_relation_based_on_type(subject, relation, urls, g, query_results, True)
 
-    query_results = object_text_to_match[0].xpath(f"./td//text()[. != '\n' and not(./parent::a)]")
+    query_results = object_text_to_match[0].xpath(f"./td//text()[. != '\n' and . != ')' and not(./parent::a)]")
     # we do not want to add twice links to the graph
 
     add_relation_based_on_type(subject, relation, urls, g, query_results, False)
@@ -92,6 +110,9 @@ def parse_date(date):
         index_paren = len(date)
     date = date[:index_paren]
     date = date.replace(",", "")
+    date = date.replace("-", " ")  # to handle range of years
+    date = date.replace("/", " ")  # to handle range of years
+    date = date.replace("\\", " ")  # to handle range of years
     date_list = date.split()
 
     if len(date_list) == 0:
@@ -107,15 +128,18 @@ def parse_date(date):
             if len(month) < 2:
                 month = "0" + month
         elif item.isnumeric() and int(item) > 31:  # it is a year
-            year = item
+            if year is None or int(year) > int(item):  # we want to take the minimal year
+                year = item
         else:
             if item.isnumeric():
                 day = item
                 if len(day) < 2:
                     day = "0" + day
-    if month is None or day is None or year is None:
-        return None
-    return f"{year}-{month}-{day}"
+    if year is not None:
+        if month is not None and day is not None:
+            return f"{year}-{month}-{day}"
+        else:
+            return None
 
 
 def crawl_film(url, g):
@@ -125,7 +149,7 @@ def crawl_film(url, g):
     :return: creates the ontology graph
     """
     urls = []
-    r = requests.get(url)
+    r = get_page(url)
     doc = lxml.html.fromstring(r.content)
 
     current_entity = URIRef(url)
@@ -136,19 +160,33 @@ def crawl_film(url, g):
     add_relation(current_entity, "starring", urls, doc, g, prefix_query, text_to_match="Starring", just_text=False)
 
     # find if the movie is based on a book
-    query_results = doc.xpath(f"{prefix_query}[./th[text() = 'Based on']]")
+    query_results = doc.xpath(f"{prefix_query}[./th[contains(text(), 'Based on')]]")
     if len(query_results) > 0:
         g.add((current_entity, OUR_NAMESPACE["based_on"], Literal(True)))
 
     # get release date
-    query_results = doc.xpath(f"{prefix_query}[./th[.//text() = 'Release date']]//li/text()")
-    for t in query_results:
-        t = parse_date(t)
-        if t is not None:
-            g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t)))
+    # //li/text()
 
-    query_results = doc.xpath(f"{prefix_query}[./th[.//text() = 'Running time']]/td/text()")
+    query_results = doc.xpath(f"{prefix_query}[./th[contains(.//text(), 'Release date')]]")
+    if len(query_results) > 0:
+        t = query_results[0].xpath("./td//span[@class='bday']//text()")
+        if len(t) > 0:
+            g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t[0])))
+        else:
+            text_results = query_results[0].xpath("./td//text()")
+            for t in text_results:
+                t = parse_date(t)
+                if t is not None:
+                    g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t)))
+
+    query_results = doc.xpath(
+        f"{prefix_query}[./th[contains(.//text(), 'Running time')]]/td"
+        f"//*[not(self::sup) and not(self::text())]//text()")
     for t in query_results:
+        t = t.split()
+        if len(t) == 0:  # if t was only whitespaces
+            continue
+        t = " ".join(t)
         g.add((current_entity, OUR_NAMESPACE["running_time"], Literal(t)))
 
     for next_url in urls:
@@ -169,34 +207,44 @@ def crawl_person(url, g):
     infobox = doc.xpath(prefix_query)
 
     if len(infobox) == 0:
-        # we only extract information form the infobox
+        # we only extract information from the infobox
         return
 
     # get the birth date
-    # format Born:
-    query_results = infobox[0].xpath(".//tr[./th[.//text() = 'Born']]/td//text()")
-    for t in query_results:
-        t = parse_date(t)
-        if t is not None:
-            g.add((current_entity, OUR_NAMESPACE["born"], Literal(t)))
     # format Date of Birth
-    query_results = infobox[0].xpath(".//tr//th[contains(text(), 'Date of birth')]")
-    for t in query_results:
-        t = t.xpath("./../td//span[@class='bday']//text()")
+    query_results = infobox[0].xpath(".//tr/th[contains(text(), 'Date of birth') or contains(text(), 'Born')]")
+    if len(query_results) > 0:
+        t = query_results[0].xpath("./../td//span[@class='bday']//text()")
         if len(t) > 0:
-            t = [str(s) for s in t]
-            dob = "".join(t)
-            g.add((current_entity, OUR_NAMESPACE["born"], Literal(dob)))
+            g.add((current_entity, OUR_NAMESPACE["born"], Literal(t[0])))
+        else:  # there is no bday, extract plain text
+            query_results = query_results[0].xpath("./../td//text()")
+            for t in query_results:
+                t = parse_date(t)
+                if t is not None:
+                    g.add((current_entity, OUR_NAMESPACE["born"], Literal(t)))
 
     # get the occupation
-    query_results = infobox[0].xpath(f".//tr[./th[.//text() = 'Occupation']]/td//text()")
+    query_results = infobox[0].xpath(f".//tr[./th[contains(.//text(), 'Occupation')]]/td//"
+                                     f"*[not(self::style) and not(self::sup) and not(self::text())]//text()")
     for t in query_results:
+        list_occupations = t.split()
+        if "and" in list_occupations:
+            list_occupations.remove("and")
+        t = " ".join(list_occupations)
         list_occupations = t.split(",")
         for occ in list_occupations:
-            g.add((current_entity, OUR_NAMESPACE["occupation"], Literal(occ.strip().title())))
+            # remove redundant whitespaces
+            words = occ.strip().split()
+            occ = " ".join(words)
+            if len(occ) != 0:
+                g.add((current_entity, OUR_NAMESPACE["occupation"], Literal(occ.lower().title())))
+
+
+def build_ontology():
+    url_root = "https://en.wikipedia.org/wiki/List_of_Academy_Award-winning_films"
+    iterate_movies_list(url_root)
 
 
 url_root = "https://en.wikipedia.org/wiki/List_of_Academy_Award-winning_films"
-g = iterate_movies_list(url_root)
-
-
+iterate_movies_list(url_root)

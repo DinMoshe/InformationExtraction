@@ -1,4 +1,4 @@
-from rdflib import Graph, Literal, URIRef, Namespace
+from rdflib import Namespace
 
 OUR_NAMESPACE = Namespace("https://example.org/")
 WIKI = Namespace("http://en.wikipedia.org/wiki/")
@@ -25,8 +25,8 @@ def parse_query(input_string):
             query#9:  (9, occupation_relation, person_name)
             query#10: (10, based_on_relation)
             query#11: (11, starring_relation, person_name)
-            query#12  (12, occupation1, occupation2)
-            query#13  (13, )
+            query#12  (12, occupation_relation, occupation1, occupation2)
+            query#13  (13, starring_relation, person1, person2)
     """
 
     # remove question mark:
@@ -70,9 +70,10 @@ def parse_query(input_string):
             elif "are" in words_lst and "also" in words_lst:
                 # query 12
                 index_of_are = words_lst.index("are")
-                occupation1 = words_lst[2:index_of_are].title()
-                occupation2 = words_lst[index_of_are + 1:].title()
-                return 12, occupation1, occupation2
+                occupation1 = " ".join(words_lst[2:index_of_are]).lower().title()
+                occupation2 = " ".join(words_lst[index_of_are + 2:]).lower().title()
+                relation = OUR_NAMESPACE["occupation"]
+                return 12, relation, occupation1, occupation2
     elif words_lst[0] == "Did":
         # query 7
         index_of_star = words_lst.index("star")  # must be the verb of the query
@@ -83,3 +84,11 @@ def parse_query(input_string):
     elif words_lst[0] == "What":
         # query 9
         return 9, *get_entity_name_and_relation("occupation", words_lst, 5, len(words_lst))
+    elif words_lst[0] == "Have":
+        # query 13
+        index_of_and = words_lst.index("and")
+        index_of_ever = words_lst.index("ever")
+        person1_name = "_".join(words_lst[1:index_of_and])
+        person2_name = "_".join(words_lst[index_of_and + 1:index_of_ever])
+        relation = OUR_NAMESPACE["starring"]
+        return 13, relation, WIKI[person1_name], WIKI[person2_name]

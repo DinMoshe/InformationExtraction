@@ -1,9 +1,25 @@
 from parse_query import parse_query
 import rdflib
+import sys
+from build_ontology import build_ontology
 
 
 def parse_cmd_line():
-    pass
+    if len(sys.argv) < 3:
+        print("Not enough arguments")
+        return
+
+    action = sys.argv[2]
+    if action == "create":
+        build_ontology()
+    elif action == "question":
+        if len(sys.argv) < 4:
+            print("Not enough arguments")
+            return
+        question = sys.argv[3]
+        execute_query(question)
+    else:
+        print("Illegal action")
 
 
 def get_name_from_URI(lst, g):
@@ -42,16 +58,49 @@ def execute_query(input_string):
     if query_tuple[0] == 7:
         query_string = "SELECT ?film WHERE {" \
                        f" ?film <{query_tuple[1]}> <{query_tuple[3]}> ." \
-                       f" ?film a <{query_tuple[2]}> . " + "}"
-        # f""" FILTER ( regex(str(?film), "{str(query_tuple[2])}" ) """ + "}"
+                       f"FILTER ( regex(?film, ?wanted_film ) ." + "}"
+        # f" ?film a <{query_tuple[2]}> . " + "}"
 
+        results = g.query(query_string, initBindings={"wanted_film": rdflib.Literal(query_tuple[2])})
+        print_yes_or_no(results)
+
+    if 10 <= query_tuple[0] <= 11:
+        additional_string = "?is_based" if query_tuple[0] == 10 else f"<{query_tuple[2]}>"
+        query_string = "SELECT (COUNT(DISTINCT ?film) AS ?count) WHERE {" \
+                       f" ?film <{query_tuple[1]}> {additional_string} ." \
+                       "}"
         results = g.query(query_string)
-        print(results)
-        print(list(results))
+        results = list(results)
+        print(results[0][0])
+
+    if query_tuple[0] == 12:
+        query_string = "SELECT (COUNT(DISTINCT ?person) AS ?count) WHERE {" \
+                       f" ?person <{query_tuple[1]}> ?occupation1 ." \
+                       f" ?person <{query_tuple[1]}> ?occupation2 ." \
+                       "}"
+        results = g.query(query_string, initBindings={'occupation1': rdflib.Literal(query_tuple[2]),
+                                                      'occupation2': rdflib.Literal(query_tuple[3])})
+        results = list(results)
+        print(results[0][0])
+
+    if query_tuple[0] == 13:
+        query_string = "SELECT ?film WHERE {" \
+                       f" ?film <{query_tuple[1]}> ?person1 ." \
+                       f" ?film <{query_tuple[1]}> ?person2 ." \
+                       "}"
+        results = g.query(query_string, initBindings={'person1': query_tuple[2],
+                                                      'person2': query_tuple[3]})
+        results = list(results)
         print_yes_or_no(results)
 
 
-# execute_query("Is A Star Is Born (2018 film) based on a book?")
-# execute_query("What is the occupation of Lady Gaga?")
-# execute_query("When was Lady Gaga born?")
-execute_query("Did Lady Gaga star in Is A Star Is Born (2018 film)?")
+if __name__ == "__main__":
+    # execute_query("Is A Star Is Born (2018 film) based on a book?")
+    # execute_query("What is the occupation of Lady Gaga?")
+    # execute_query("When was Lady Gaga born?")
+    # execute_query("Did Lady Gaga star in Is A Star Is Born (2018 film)?")
+    # execute_query("How many films are based on books?")
+    # execute_query("How many films starring Meryl Streep won an academy award?")
+    # execute_query("How many actress are also model?")
+    execute_query("Have Lady Gaga and Bradley Cooper ever starred in a film together?")
+    # parse_cmd_line()
