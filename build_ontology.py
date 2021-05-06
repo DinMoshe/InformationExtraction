@@ -43,8 +43,8 @@ def iterate_movies_list(url):
 
     i = 0
 
-    # urls = ["http://en.wikipedia.org/wiki/The_Great_Beauty"]
-    # visited.add("The_Great_Beauty")
+    # urls = ["http://en.wikipedia.org/wiki/Mad_Max:_Fury_Road"]
+    # visited.add("Mad_Max:_Fury_Road")
 
     for next_url in urls:
         crawl_film(next_url, g)
@@ -82,11 +82,14 @@ def add_relation(subject, relation, urls, doc, g, prefix_query, text_to_match, j
         return
 
     if not just_text:
-        query_results = object_text_to_match[0].xpath(".//a/@href")
+        query_results = object_text_to_match[0].xpath(f".//a/@href[. != '/wiki/Producers_Mark']")
+        # removed this link because of the Birdman film
         add_relation_based_on_type(subject, relation, urls, g, query_results, True)
 
-    query_results = object_text_to_match[0].xpath(f"./td//text()[. != '\n' and . != ')' and not(./parent::a)]")
+    query_results = object_text_to_match[0].xpath(f"./td//text()[. != '\n' and . != ')' and . != '(p.g.a)' "
+                                                  f"and not(./parent::a)]")
     # we do not want to add twice links to the graph
+    # (g.p.a) is in Birdman film
 
     add_relation_based_on_type(subject, relation, urls, g, query_results, False)
 
@@ -180,8 +183,9 @@ def crawl_film(url, g):
                     g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t)))
 
     query_results = doc.xpath(
-        f"{prefix_query}[./th[contains(.//text(), 'Running time')]]/td"
-        f"//*[not(self::sup) and not(self::text())]//text()")
+        f"{prefix_query}[./th[contains(.//text(), 'Running time')]]/td/"
+        f"/text()[not(ancestor::sup) and not(ancestor::style)]")
+    # maybe add  and @class != 'reference'
     for t in query_results:
         t = t.split()
         if len(t) == 0:  # if t was only whitespaces
@@ -215,6 +219,7 @@ def crawl_person(url, g):
     query_results = infobox[0].xpath(".//tr/th[contains(text(), 'Date of birth') or contains(text(), 'Born')]")
     if len(query_results) > 0:
         t = query_results[0].xpath("./../td//span[@class='bday']//text()")
+        # //*[not(self::text() and @class != 'reference']
         if len(t) > 0:
             g.add((current_entity, OUR_NAMESPACE["born"], Literal(t[0])))
         else:  # there is no bday, extract plain text
@@ -225,12 +230,10 @@ def crawl_person(url, g):
                     g.add((current_entity, OUR_NAMESPACE["born"], Literal(t)))
 
     # get the occupation
-    query_results = infobox[0].xpath(f".//tr[./th[contains(.//text(), 'Occupation')]]/td//"
-                                     f"*[not(self::style) and not(self::sup) and not(self::text())]//text()")
+    query_results = infobox[0].xpath(f".//tr[./th[contains(.//text(), 'Occupation')]]/td"
+                                     f"//text()[. != '\n' and not(ancestor::sup) and not(ancestor::style)]")
     for t in query_results:
         list_occupations = t.split()
-        if "and" in list_occupations:
-            list_occupations.remove("and")
         t = " ".join(list_occupations)
         list_occupations = t.split(",")
         for occ in list_occupations:
@@ -238,7 +241,7 @@ def crawl_person(url, g):
             words = occ.strip().split()
             occ = " ".join(words)
             if len(occ) != 0:
-                g.add((current_entity, OUR_NAMESPACE["occupation"], Literal(occ.lower().title())))
+                g.add((current_entity, OUR_NAMESPACE["occupation"], Literal(occ.lower())))
 
 
 def build_ontology():
@@ -246,5 +249,7 @@ def build_ontology():
     iterate_movies_list(url_root)
 
 
-url_root = "https://en.wikipedia.org/wiki/List_of_Academy_Award-winning_films"
-iterate_movies_list(url_root)
+build_ontology()
+
+
+

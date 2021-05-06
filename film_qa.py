@@ -22,8 +22,9 @@ def parse_cmd_line():
         print("Illegal action")
 
 
-def get_name_from_URI(lst, g):
-    lst = [g.compute_qname(uri[0])[-1].replace("_", " ") for uri in lst]
+def get_name_from_URI(lst):
+    start = len("http://en.wikipedia.org/wiki/")
+    lst = [str(uri[0])[start:].replace("_", " ") for uri in lst]
     return lst
 
 
@@ -52,16 +53,19 @@ def execute_query(input_string):
             results = [str(item[0]) for item in list(results)]
             print(", ".join(results))
         else:
-            results = get_name_from_URI(list(results), g)
+            results = get_name_from_URI(list(results))
             print(", ".join(results))
 
     if query_tuple[0] == 7:
-        query_string = "SELECT ?film WHERE {" \
-                       f" ?film <{query_tuple[1]}> <{query_tuple[3]}> ." \
-                       f"FILTER ( regex(?film, ?wanted_film ) ." + "}"
+        # query_string = f"SELECT ?person WHERE " + "{" \
+        #                f" ?film <{query_tuple[1]}> ?person ." + "}"
+        # f"FILTER ( regex(?film, ?wanted_film ) ." + "}"
         # f" ?film a <{query_tuple[2]}> . " + "}"
+        query_string = f"ASK WHERE " + "{" \
+                                       f" <{query_tuple[2]}> <{query_tuple[1]}> <{query_tuple[3]}> ." + "}"
 
-        results = g.query(query_string, initBindings={"wanted_film": rdflib.Literal(query_tuple[2])})
+        results = g.query(query_string)
+        results = [True] if results.askAnswer else []
         print_yes_or_no(results)
 
     if 10 <= query_tuple[0] <= 11:
@@ -98,9 +102,23 @@ if __name__ == "__main__":
     # execute_query("Is A Star Is Born (2018 film) based on a book?")
     # execute_query("What is the occupation of Lady Gaga?")
     # execute_query("When was Lady Gaga born?")
-    # execute_query("Did Lady Gaga star in Is A Star Is Born (2018 film)?")
+    execute_query("Did Lady Gaga star in Is A Star Is Born (2018 film)?")
     # execute_query("How many films are based on books?")
     # execute_query("How many films starring Meryl Streep won an academy award?")
     # execute_query("How many actress are also model?")
-    execute_query("Have Lady Gaga and Bradley Cooper ever starred in a film together?")
+    # execute_query("Have Lady Gaga and Bradley Cooper ever starred in a film together?")
+
+    # g = rdflib.Graph()
+    # g.parse("ontology.nt", format="nt")
+    # query_string = "SELECT DISTINCT ?film WHERE {" \
+    #                f" ?film <https://example.org/based_on> ?yes ." \
+    #                "}"
+    # results = g.query(query_string)
+    # results = list(results)
+    # results = get_name_from_URI(results)
+    # print(", ".join(results))
+
     # parse_cmd_line()
+
+
+

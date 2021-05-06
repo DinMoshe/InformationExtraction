@@ -70,8 +70,8 @@ def parse_query(input_string):
             elif "are" in words_lst and "also" in words_lst:
                 # query 12
                 index_of_are = words_lst.index("are")
-                occupation1 = " ".join(words_lst[2:index_of_are]).lower().title()
-                occupation2 = " ".join(words_lst[index_of_are + 2:]).lower().title()
+                occupation1 = " ".join(words_lst[2:index_of_are]).lower()
+                occupation2 = " ".join(words_lst[index_of_are + 2:]).lower()
                 relation = OUR_NAMESPACE["occupation"]
                 return 12, relation, occupation1, occupation2
     elif words_lst[0] == "Did":
