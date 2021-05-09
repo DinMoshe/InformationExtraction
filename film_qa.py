@@ -57,10 +57,6 @@ def execute_query(input_string):
             print(", ".join(results))
 
     if query_tuple[0] == 7:
-        # query_string = f"SELECT ?person WHERE " + "{" \
-        #                f" ?film <{query_tuple[1]}> ?person ." + "}"
-        # f"FILTER ( regex(?film, ?wanted_film ) ." + "}"
-        # f" ?film a <{query_tuple[2]}> . " + "}"
         query_string = f"ASK WHERE " + "{" \
                                        f" <{query_tuple[2]}> <{query_tuple[1]}> <{query_tuple[3]}> ." + "}"
 
@@ -102,7 +98,7 @@ if __name__ == "__main__":
     # execute_query("Is A Star Is Born (2018 film) based on a book?")
     # execute_query("What is the occupation of Lady Gaga?")
     # execute_query("When was Lady Gaga born?")
-    execute_query("Did Lady Gaga star in Is A Star Is Born (2018 film)?")
+    execute_query("Did Lady Gaga star in A Star Is Born (2018 film)?")
     # execute_query("How many films are based on books?")
     # execute_query("How many films starring Meryl Streep won an academy award?")
     # execute_query("How many actress are also model?")
