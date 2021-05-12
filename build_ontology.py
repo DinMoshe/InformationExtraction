@@ -43,8 +43,8 @@ def iterate_movies_list(url):
 
     i = 0
 
-    # urls = ["http://en.wikipedia.org/wiki/Mad_Max:_Fury_Road"]
-    # visited.add("Mad_Max:_Fury_Road")
+    # urls = ["http://en.wikipedia.org/wiki/Nomadland_(film)"]
+    # visited.add("Nomadland_(film)")
 
     for next_url in urls:
         crawl_film(next_url, g)
@@ -142,7 +142,9 @@ def parse_date(date):
         if month is not None and day is not None:
             return f"{year}-{month}-{day}"
         else:
-            return None
+            return year
+    else:
+        return None
 
 
 def crawl_film(url, g):
@@ -172,11 +174,11 @@ def crawl_film(url, g):
 
     query_results = doc.xpath(f"{prefix_query}[./th[contains(.//text(), 'Release date')]]")
     if len(query_results) > 0:
-        t = query_results[0].xpath("./td//span[@class='bday']//text()")
+        t = query_results[0].xpath("./td//span[contains(@class, 'bday')]//text()")
         if len(t) > 0:
             g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t[0])))
         else:
-            text_results = query_results[0].xpath("./td//text()")
+            text_results = query_results[0].xpath("./td//text()[. != '\n']")
             for t in text_results:
                 t = parse_date(t)
                 if t is not None:
@@ -218,7 +220,7 @@ def crawl_person(url, g):
     # format Date of Birth
     query_results = infobox[0].xpath(".//tr/th[contains(text(), 'Date of birth') or contains(text(), 'Born')]")
     if len(query_results) > 0:
-        t = query_results[0].xpath("./../td//span[@class='bday']//text()")
+        t = query_results[0].xpath("./../td//span[contains(@class, 'bday')]//text()")
         # //*[not(self::text() and @class != 'reference']
         if len(t) > 0:
             g.add((current_entity, OUR_NAMESPACE["born"], Literal(t[0])))
