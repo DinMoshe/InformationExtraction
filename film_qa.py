@@ -5,8 +5,6 @@ from build_ontology import build_ontology
 
 
 def parse_cmd_line():
-    print(len(sys.argv))
-    print(sys.argv)
     if len(sys.argv) < 2:
         print("Not enough arguments")
         return
