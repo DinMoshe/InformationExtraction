@@ -86,8 +86,8 @@ def add_relation(subject, relation, urls, doc, g, prefix_query, text_to_match, j
         # removed this link because of the Birdman film
         add_relation_based_on_type(subject, relation, urls, g, query_results, True)
 
-    query_results = object_text_to_match[0].xpath(f"./td//text()[. != '\n' and . != ')' and . != '(p.g.a)' "
-                                                  f"and not(./parent::a)]")
+    query_results = object_text_to_match[0].xpath(f"./td//text()[. != '\n' and . != ')' "
+                                                  f"and not(contains(., '(p.g.a.)')) and not(./parent::a)]")
     # we do not want to add twice links to the graph
     # (g.p.a) is in Birdman film
 
@@ -247,7 +247,10 @@ def crawl_person(url, g):
                 if i == 0:  # from text
                     list_occupations = t.split()
                     t = " ".join(list_occupations)
-                    list_occupations = t.split(",")
+                    if "•" in t:
+                        list_occupations = t.split("•")
+                    else:
+                        list_occupations = t.split(",")
                 elif i == 1:  # from link
                     t = extract_name_from_url(prefix + t)
                     list_occupations = [t]
