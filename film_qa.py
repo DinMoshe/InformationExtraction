@@ -5,18 +5,20 @@ from build_ontology import build_ontology
 
 
 def parse_cmd_line():
-    if len(sys.argv) < 3:
+    print(len(sys.argv))
+    print(sys.argv)
+    if len(sys.argv) < 2:
         print("Not enough arguments")
         return
 
-    action = sys.argv[2]
+    action = sys.argv[1]
     if action == "create":
         build_ontology()
     elif action == "question":
-        if len(sys.argv) < 4:
+        if len(sys.argv) < 3:
             print("Not enough arguments")
             return
-        question = sys.argv[3]
+        question = sys.argv[2]
         execute_query(question)
     else:
         print("Illegal action")
@@ -102,7 +104,7 @@ if __name__ == "__main__":
     # execute_query("How many films are based on books?")
     # execute_query("How many films starring Meryl Streep won an academy award?")
     # execute_query("How many actress are also model?")
-    execute_query("Have Lady Gaga and Bradley Cooper ever starred in a film together?")
+    # execute_query("Have Lady Gaga and Bradley Cooper ever starred in a film together?")
 
     # g = rdflib.Graph()
     # g.parse("ontology.nt", format="nt")
@@ -114,5 +116,5 @@ if __name__ == "__main__":
     # results = get_name_from_URI(results)
     # print(", ".join(results))
 
-    # parse_cmd_line()
+    parse_cmd_line()
 

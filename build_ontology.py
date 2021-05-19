@@ -266,7 +266,7 @@ def build_ontology():
     iterate_movies_list(url_root)
 
 
-build_ontology()
+# build_ontology()
 
 
 
