@@ -96,13 +96,13 @@ def execute_query(input_string):
 
 if __name__ == "__main__":
     # execute_query("Is A Star Is Born (2018 film) based on a book?")
-    # execute_query("What is the occupation of Lady Gaga?")
+    # execute_query("What is the occupation of Steven Yeun?")
     # execute_query("When was Lady Gaga born?")
-    execute_query("Did Lady Gaga star in A Star Is Born (2018 film)?")
+    # execute_query("Did Lady Gaga star in A Star Is Born (2018 film)?")
     # execute_query("How many films are based on books?")
     # execute_query("How many films starring Meryl Streep won an academy award?")
     # execute_query("How many actress are also model?")
-    # execute_query("Have Lady Gaga and Bradley Cooper ever starred in a film together?")
+    execute_query("Have Lady Gaga and Bradley Cooper ever starred in a film together?")
 
     # g = rdflib.Graph()
     # g.parse("ontology.nt", format="nt")
@@ -115,6 +115,4 @@ if __name__ == "__main__":
     # print(", ".join(results))
 
     # parse_cmd_line()
-
-
 

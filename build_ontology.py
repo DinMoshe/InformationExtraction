@@ -19,8 +19,8 @@ def get_page(url):
         try:
             page = requests.get(url)
             break
-
-        except requests.exceptions.ConnectionError:
+        except:
+            # maybe add this to the except: requests.exceptions.ConnectionError
             time.sleep(5)
             continue
     return page
@@ -32,7 +32,7 @@ def iterate_movies_list(url):
     r = get_page(url)
     doc = lxml.html.fromstring(r.content)
     for t in doc.xpath("""//table[contains(@class, 'wikitable sortable')]
-                        //tr[td[2]//a/text()[number(.) >= 2010]]/td[1]//a[@href]/@href"""):
+                        //tr[td[2]//a/text()[number(.) >= 2010]]/td[1]//a/@href"""):
         # get all the links of movies which are a column of a row which its second child of type td contains
         # an element <a> whose text is the year and it is 2010 or above
         if t in visited:
@@ -139,10 +139,11 @@ def parse_date(date):
                 if len(day) < 2:
                     day = "0" + day
     if year is not None:
-        if month is not None and day is not None:
-            return f"{year}-{month}-{day}"
-        else:
-            return year
+        # if month is not None and day is not None:
+        #     return f"{year}-{month}-{day}"
+        # else:
+        #     return year
+        return year
     else:
         return None
 
@@ -174,26 +175,29 @@ def crawl_film(url, g):
 
     query_results = doc.xpath(f"{prefix_query}[./th[contains(.//text(), 'Release date')]]")
     if len(query_results) > 0:
-        t = query_results[0].xpath("./td//span[contains(@class, 'bday')]//text()")
-        if len(t) > 0:
-            g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t[0])))
-        else:
-            text_results = query_results[0].xpath("./td//text()[. != '\n']")
-            for t in text_results:
-                t = parse_date(t)
-                if t is not None:
-                    g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t)))
+        bday_results = query_results[0].xpath("./td//span[contains(@class, 'bday')]//text()")
+        for t in bday_results:
+            g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t)))
 
-    query_results = doc.xpath(
-        f"{prefix_query}[./th[contains(.//text(), 'Running time')]]/td/"
-        f"/text()[not(ancestor::sup) and not(ancestor::style)]")
-    # maybe add  and @class != 'reference'
-    for t in query_results:
-        t = t.split()
-        if len(t) == 0:  # if t was only whitespaces
-            continue
-        t = " ".join(t)
-        g.add((current_entity, OUR_NAMESPACE["running_time"], Literal(t)))
+        # As stated in the forum, we want for release_date only bday tags. Therefore the next block is commented out.
+        # if len(bday_results) == 0:
+        #     text_results = query_results[0].xpath("./td//text()[. != '\n']")
+        #     for t in text_results:
+        #         t = parse_date(t)
+        #         if t is not None:
+        #             g.add((current_entity, OUR_NAMESPACE["release_date"], Literal(t)))
+
+    running_time_results = doc.xpath(f"{prefix_query}[./th[contains(.//text(), 'Running time')]]/td")
+    if len(running_time_results) > 0:
+        text_results = running_time_results[0].xpath(f"./text()[not(ancestor::sup) and not(ancestor::style)]")
+        list_results = running_time_results[0].xpath(f".//li/text()[not(ancestor::sup) and not(ancestor::style)]")
+        for results in [text_results, list_results]:
+            for t in results:
+                t = t.split()
+                if len(t) == 0:  # if t was only whitespaces
+                    continue
+                t = " ".join(t)
+                g.add((current_entity, OUR_NAMESPACE["running_time"], Literal(t)))
 
     for next_url in urls:
         crawl_person(next_url, g)
@@ -205,7 +209,7 @@ def crawl_person(url, g):
     :param g: ontology graph
     :return: creates the ontology graph
     """
-    r = requests.get(url)
+    r = get_page(url)
     doc = lxml.html.fromstring(r.content)
 
     current_entity = URIRef(url)
@@ -232,18 +236,29 @@ def crawl_person(url, g):
                     g.add((current_entity, OUR_NAMESPACE["born"], Literal(t)))
 
     # get the occupation
-    query_results = infobox[0].xpath(f".//tr[./th[contains(.//text(), 'Occupation')]]/td"
-                                     f"//text()[. != '\n' and not(ancestor::sup) and not(ancestor::style)]")
-    for t in query_results:
-        list_occupations = t.split()
-        t = " ".join(list_occupations)
-        list_occupations = t.split(",")
-        for occ in list_occupations:
-            # remove redundant whitespaces
-            words = occ.strip().split()
-            occ = " ".join(words)
-            if len(occ) != 0:
-                g.add((current_entity, OUR_NAMESPACE["occupation"], Literal(occ.lower())))
+    occupation_results = infobox[0].xpath(f".//tr[./th[contains(.//text(), 'Occupation')]]/td")
+    if len(occupation_results) > 0:
+        text_results = occupation_results[0].xpath(f".//text()[. != '\n' and not(ancestor::sup) "
+                                                   f"and not(ancestor::style) and not(parent::a)]")
+        link_results = occupation_results[0].xpath(f".//a/@href")
+        list_results = [text_results, link_results]
+        for i in range(len(list_results)):
+            for t in list_results[i]:
+                if i == 0:  # from text
+                    list_occupations = t.split()
+                    t = " ".join(list_occupations)
+                    list_occupations = t.split(",")
+                elif i == 1:  # from link
+                    t = extract_name_from_url(prefix + t)
+                    list_occupations = [t]
+                else:
+                    list_occupations = []
+                for occ in list_occupations:
+                    # remove redundant whitespaces
+                    words = occ.strip().split()
+                    occ = " ".join(words)
+                    if len(occ) > 0:
+                        g.add((current_entity, OUR_NAMESPACE["occupation"], Literal(occ.lower())))
 
 
 def build_ontology():
