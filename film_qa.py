@@ -28,12 +28,10 @@ def get_name_from_URI(lst):
     return lst
 
 
-def print_yes_or_no(results):
+def answer_yes_or_no(results):
     if len(results) > 0:
-        print("Yes")
         return "Yes"
     else:
-        print("No")
         return "No"
 
 
@@ -52,15 +50,13 @@ def execute_query(input_string):
         results = g.query(query_string)
         results = list(results)
         if query_tuple[0] == 3:
-            answer = print_yes_or_no(results)
+            answer = answer_yes_or_no(results)
         elif 4 <= query_tuple[0] <= 5 or 8 <= query_tuple[0] <= 9:
             results = [str(item[0]) for item in results]
             answer = ", ".join(results)
-            print(answer)
         else:
             results = get_name_from_URI(results)
             answer = ", ".join(results)
-            print(answer)
 
     if query_tuple[0] == 7:
         query_string = f"ASK WHERE " + "{" \
@@ -68,7 +64,7 @@ def execute_query(input_string):
 
         results = g.query(query_string)
         results = [True] if results.askAnswer else []
-        answer = print_yes_or_no(results)
+        answer = answer_yes_or_no(results)
 
     if 10 <= query_tuple[0] <= 11:
         additional_string = "?is_based" if query_tuple[0] == 10 else f"<{query_tuple[2]}>"
@@ -78,7 +74,6 @@ def execute_query(input_string):
         results = g.query(query_string)
         results = list(results)
         answer = str(results[0][0])
-        print(answer)
 
     if query_tuple[0] == 12:
         query_string = "SELECT (COUNT(DISTINCT ?person) AS ?count) WHERE {" \
@@ -89,7 +84,6 @@ def execute_query(input_string):
                                                       'occupation2': rdflib.Literal(query_tuple[3])})
         results = list(results)
         answer = str(results[0][0])
-        print(answer)
 
     if query_tuple[0] == 13:
         query_string = "SELECT ?film WHERE {" \
@@ -99,8 +93,9 @@ def execute_query(input_string):
         results = g.query(query_string, initBindings={'person1': query_tuple[2],
                                                       'person2': query_tuple[3]})
         results = list(results)
-        answer = print_yes_or_no(results)
+        answer = answer_yes_or_no(results)
 
+    print(answer)
     return answer
 
 
