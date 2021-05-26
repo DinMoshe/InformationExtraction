@@ -37,27 +37,27 @@ def parse_query(input_string):
         # queries 1 or 2 or 6
         if words_lst[1] == "directed":
             # query 1
-            return 1, *get_entity_name_and_relation("director", words_lst, 2, len(words_lst))
+            return (1,) + get_entity_name_and_relation("director", words_lst, 2, len(words_lst))
         elif words_lst[1] == "produced":
             # query 2
-            return 2, *get_entity_name_and_relation("producer", words_lst, 2, len(words_lst))
+            return (2,) + get_entity_name_and_relation("producer", words_lst, 2, len(words_lst))
         elif words_lst[1] == "starred" and words_lst[2] == "in":
             # query 6
-            return 6, *get_entity_name_and_relation("starring", words_lst, 3, len(words_lst))
+            return (6,) + get_entity_name_and_relation("starring", words_lst, 3, len(words_lst))
     elif words_lst[0] == "Is":
         # query 3
-        return 3, *get_entity_name_and_relation("based_on", words_lst, 1, len(words_lst) - 4)
+        return (3,) + get_entity_name_and_relation("based_on", words_lst, 1, len(words_lst) - 4)
     elif words_lst[0] == "When":
         if words_lst[-1] == "released":
             # query 4
-            return 4, *get_entity_name_and_relation("release_date", words_lst, 2, len(words_lst) - 1)
+            return (4,) + get_entity_name_and_relation("release_date", words_lst, 2, len(words_lst) - 1)
         elif words_lst[-1] == "born":
             # query 8
-            return 8, *get_entity_name_and_relation("born", words_lst, 2, len(words_lst) - 1)
+            return (8,) + get_entity_name_and_relation("born", words_lst, 2, len(words_lst) - 1)
     elif words_lst[0] == "How":
         if words_lst[1] == "long":
             # query 5
-            return 5, *get_entity_name_and_relation("running_time", words_lst, 3, len(words_lst))
+            return (5,) + get_entity_name_and_relation("running_time", words_lst, 3, len(words_lst))
         elif words_lst[1] == "many":
             # queries 10, 11 or 12
             if words_lst[2] == "films" and words_lst[-1] == "books":
@@ -66,7 +66,7 @@ def parse_query(input_string):
             elif words_lst[2] == "films" and words_lst[3] == "starring":
                 # query 11
                 index_of_won = words_lst.index("won")
-                return 11, *get_entity_name_and_relation("starring", words_lst, 4, index_of_won)
+                return (11,) + get_entity_name_and_relation("starring", words_lst, 4, index_of_won)
             elif "are" in words_lst and "also" in words_lst:
                 # query 12
                 index_of_are = words_lst.index("are")
@@ -83,7 +83,7 @@ def parse_query(input_string):
         return 7, relation, WIKI[film_name], WIKI[person_name]
     elif words_lst[0] == "What":
         # query 9
-        return 9, *get_entity_name_and_relation("occupation", words_lst, 5, len(words_lst))
+        return (9, ) + get_entity_name_and_relation("occupation", words_lst, 5, len(words_lst))
     elif words_lst[0] == "Have":
         # query 13
         index_of_and = words_lst.index("and")
